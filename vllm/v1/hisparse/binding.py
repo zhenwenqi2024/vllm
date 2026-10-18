@@ -168,14 +168,34 @@ def _get_hisparse_cache(
 
 
 def release_hisparse_profiling_cache(forward_context: dict[str, Any]) -> None:
-    """Detach the profiling caches but keep the host pool for the real KV cache."""
-    runtimes = {
-        id(cache.runtime): cache.runtime
+    """Detach profiling views after the caller drains and destroys its graphs.
+
+    Keep the host pool and index-group scratch for the real KV cache. Both the
+    handle and runtime own device views; dropping only the raw backing retains
+    the profiling slab until the real cache is already allocated.
+    """
+    handles = {
+        id(cache): cache
         for layer in forward_context.values()
         if (cache := getattr(layer, "hisparse_cache", None)) is not None
         and hasattr(cache.runtime, "_host_cache")
     }
+    runtimes = {id(cache.runtime): cache.runtime for cache in handles.values()}
     release_pinned_state(list(runtimes.values()), [])
+    for cache in handles.values():
+        cache.view = None
+        cache.residency = None
+        cache.block_table = None
+        cache.slot_mapping = None
+        cache.source_block_table = None
+        cache.mirror_slot_mapping = None
+        cache._batch_block_table = None
+    for runtime in runtimes.values():
+        for name in ("hot", "hot_block_table"):
+            if hasattr(runtime, name):
+                delattr(runtime, name)
+        runtime.request_state_indices = None
+        runtime._swap_staged = False
 
 
 def bind_hisparse_kv_caches(
