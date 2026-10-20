@@ -14,6 +14,7 @@ from unittest.mock import MagicMock
 import numpy as np
 import pytest
 import torch
+from torch.multiprocessing.reductions import StorageWeakRef
 
 import vllm.v1.hisparse.binding as attn_utils_module
 import vllm.v1.hisparse.runtime as hisparse_runtime_module
@@ -25,6 +26,7 @@ from tests.v1.attention.utils import (
 from vllm.config.compilation import CompilationConfig, CUDAGraphMode
 from vllm.v1.attention.backend import AttentionBackend, AttentionCGSupport, MultipleOf
 from vllm.v1.core.kv_cache_utils import KVCacheBlockCopy
+from vllm.v1.hisparse.backend import CUDAHiSparseBackend
 from vllm.v1.hisparse.binding import allocate_hisparse_kv_caches
 from vllm.v1.kv_cache_interface import (
     FullAttentionSpec,
@@ -460,10 +462,66 @@ def test_profiling_cleanup_keeps_host_pool_for_real_kv_cache(monkeypatch):
     hisparse_runtime_module.drop_hisparse_host_pool(vllm_config)
 
 
-@pytest.mark.parametrize("failure_phase", ["allocation", "binding", "buffers"])
+@pytest.mark.parametrize("retain_graph_view", [False, True])
+def test_hisparse_profiling_cleanup_releases_all_device_slab_views(retain_graph_view):
+    host_pool = torch.empty(32, dtype=torch.int8)
+    group_scratch = object()
+
+    def make_handle():
+        slab = torch.empty(128, dtype=torch.int8)
+        storage = StorageWeakRef(slab.untyped_storage())
+        view = hisparse_runtime_module.PagedCacheView.bind(
+            slab,
+            dtype=torch.float32,
+            row_width=4,
+            byte_offset=0,
+            block_stride=32,
+            num_blocks=4,
+            block_size=2,
+        )
+        runtime = SimpleNamespace(
+            _host_cache=host_pool,
+            registered_host_pool=host_pool,
+            hot_backing=slab,
+            hot=view,
+            hot_block_table=torch.zeros((1, 4), dtype=torch.int32),
+            index_group=group_scratch,
+        )
+        handle = hisparse_runtime_module.HiSparseCacheHandle(runtime)
+        handle.view = view
+        graph_view = slab.view(-1) if retain_graph_view else None
+        return handle, storage, graph_view
+
+    handle, storage, graph_view = make_handle()
+    assert not storage.expired()
+    # Aliases in the static context must not cause duplicate runtime teardown.
+    layer = SimpleNamespace(hisparse_cache=handle)
+    context = {"layer": layer, "alias": layer}
+    attn_utils_module.release_hisparse_profiling_cache(context)
+
+    assert storage.expired() is not retain_graph_view
+    del graph_view
+    assert storage.expired()
+    assert handle.view is None
+    assert handle.runtime.index_group is group_scratch
+    assert host_pool.numel() == 32
+    # Teardown is safe twice; a later init rebinds the same handle/runtime.
+    attn_utils_module.release_hisparse_profiling_cache(context)
+
+
+@pytest.mark.parametrize("failure_phase", ["allocation", "views", "binding", "buffers"])
 @pytest.mark.parametrize("shared", [False, True])
 def test_init_hisparse_rolls_back_host_pool(monkeypatch, failure_phase, shared):
     """Failed initialization must release shared or private registrations."""
+    monkeypatch.setattr(
+        hisparse_runtime_module, "get_hisparse_backend", CUDAHiSparseBackend
+    )
+    backend = CUDAHiSparseBackend()
+    if failure_phase == "views":
+        backend.prepare_kv_cache_views = MagicMock(
+            side_effect=RuntimeError("initialization failed")
+        )
+    monkeypatch.setattr(attn_utils_module, "get_hisparse_backend", lambda: backend)
     region = _FakeSharedHostRegion()
     registered = torch.empty(4096, dtype=torch.int8)
     cudart = MagicMock()
@@ -519,6 +577,34 @@ def test_init_hisparse_rolls_back_host_pool(monkeypatch, failure_phase, shared):
         cudart.cudaHostUnregister.assert_called_once_with(registered.data_ptr())
     assert attn_utils_module.get_hisparse_host_pool(vllm_config, None) is not pools[0]
     hisparse_runtime_module.drop_hisparse_host_pool(vllm_config)
+
+
+def test_backend_rejects_cache_format_before_host_pool_allocation(monkeypatch):
+    backend = CUDAHiSparseBackend()
+    backend.validate_kv_cache_config = MagicMock(
+        side_effect=ValueError("unsupported device format")
+    )
+    pool = MagicMock()
+    monkeypatch.setattr(attn_utils_module, "get_hisparse_backend", lambda: backend)
+    monkeypatch.setattr(attn_utils_module, "get_hisparse_host_pool", pool)
+    with pytest.raises(ValueError, match="unsupported device format"):
+        attn_utils_module.init_hisparse_kv_cache(
+            object(), torch.device("cpu"), [], None, {}, None
+        )
+    pool.assert_not_called()
+
+
+def test_cuda_cache_view_hooks_preserve_original_tensor_ownership():
+    backend = CUDAHiSparseBackend()
+    backing = torch.empty(32)
+    cache = backing[8:24].view(2, 8)
+    caches = {"layer": cache}
+    context = {"layer": object()}
+    backend.validate_kv_cache_config(None)
+    backend.prepare_kv_cache_views(None, caches, context)
+    assert caches["layer"] is cache
+    assert caches["layer"].untyped_storage().data_ptr() == backing.data_ptr()
+    assert caches["layer"].storage_offset() == 8
 
 
 def test_reshape_padded_kv_cache_strides_by_padded_page():
