@@ -50,6 +50,24 @@ def is_hisparse_decode_batch(attn_metadata: Any | None) -> bool:
     )
 
 
+def is_hisparse_group_prefetch_batch(attn_metadata: Any | None, max_rows: int) -> bool:
+    """Allow speculative Decode to stage a group's old missing KV rows.
+
+    This controls prefetch only. The single-token ``decode_batch`` policy
+    still controls resident writes and Host mirroring. The resolver excludes
+    resident rows, including current tentative tokens, from the swap plan.
+    Each follower writes those tokens before its own attention consumption.
+    """
+    return (
+        attn_metadata is not None
+        and attn_metadata.num_actual_tokens > 0
+        and attn_metadata.num_decode_tokens == attn_metadata.num_actual_tokens
+        and 0 < attn_metadata.num_reqs <= attn_metadata.num_actual_tokens
+        and 0 < attn_metadata.max_query_len <= max_rows
+        and attn_metadata.num_actual_tokens <= max_rows
+    )
+
+
 def _get_max_swap_rows(vllm_config: VllmConfig) -> int:
     max_query_len = max_decode_query_len(vllm_config)
     scheduler_config = vllm_config.scheduler_config
@@ -960,22 +978,9 @@ class HiSparseRuntime:
             device=plan.block_table.device,
         )
         if plan.gpu_row_ids is not None and resident_cache is not None:
-            gpu_rows = plan.gpu_row_ids[0].to(torch.long)
-            src = gpu_rows.clamp_min(0)
-            resident_block_size = resident_cache.shape[1]
-            source = resident_cache
-            destination = staged.view(-1, row_width)
-            if source.dtype == destination.dtype and source.dtype in (
-                torch.float8_e4m3fn,
-                torch.float8_e5m2,
-            ):
-                # Packed FP8 rows also contain opaque RoPE and scale bytes.
-                source = source.view(torch.uint8)
-                destination = destination.view(torch.uint8)
-            rows = source[src // resident_block_size, src % resident_block_size]
-            if rows.dtype != destination.dtype:
-                rows = rows.contiguous().view(destination.dtype)
-            destination.copy_(rows)
+            self.backend.gather_resident_rows(
+                resident_cache, staged.view(-1, row_width), plan.gpu_row_ids[0]
+            )
         self.cache_ops.hisparse_gather_plan(
             kv_cache.view(-1, row_width),
             staged,
@@ -1172,7 +1177,7 @@ class HiSparseRuntime:
                 valid_counts_out=valid_counts_out,
             )
             runtimes = [self]
-            if resident.decode_batch:
+            if resident.prefetch_decode_group:
                 runtimes.extend(group.followers)
             for runtime in runtimes:
                 runtime._swap_rows(shared_rows)
@@ -1296,6 +1301,7 @@ class HiSparseCacheHandle:
         self.runtime = runtime
         self.dummy_batch = False
         self.decode_batch = False
+        self.prefetch_decode_group = False
         self.all_context_pages_resident = True
         self.num_actual_tokens = 0
         self.num_decode_tokens = 0
@@ -1327,6 +1333,12 @@ class HiSparseCacheHandle:
             attn_metadata.req_id_per_token if attn_metadata is not None else None
         )
         self.decode_batch = is_hisparse_decode_batch(attn_metadata)
+        self.prefetch_decode_group = self.decode_batch or (
+            getattr(self.runtime.backend, "supports_speculative_group_prefetch", False)
+            and is_hisparse_group_prefetch_batch(
+                attn_metadata, self.runtime.max_swap_rows
+            )
+        )
         self.host_mirror_required = attn_metadata is not None and (
             not self.decode_batch or self.runtime.eager_host_mirror
         )

@@ -19,6 +19,7 @@ if TYPE_CHECKING:
 
 class HiSparseBackend:
     supports_shared_host_pool = False
+    supports_speculative_group_prefetch = False
     stats_dtype = torch.uint64
 
     def check_available(self) -> None:
@@ -47,6 +48,33 @@ class HiSparseBackend:
         Called once per cache initialization, inside the common rollback scope.
         Backends must not put per-step metadata or transfers in this hook.
         """
+
+    def gather_resident_rows(
+        self,
+        source: torch.Tensor,
+        destination: torch.Tensor,
+        indices: torch.Tensor,
+    ) -> None:
+        """Gather current resident rows into caller-owned staging storage.
+
+        Negative indices select row zero; the subsequent Host gather fills
+        miss rows. Positive indices must address the supplied resident cache.
+        Backends enqueue work on the caller's current stream and retain no
+        per-call metadata, tensor views, or completion state.
+        """
+        rows = indices.to(torch.long).clamp_min(0)
+        block_size = source.shape[1]
+        if source.dtype == destination.dtype and source.dtype in (
+            torch.float8_e4m3fn,
+            torch.float8_e5m2,
+        ):
+            # Packed rows contain opaque RoPE and scale bytes as well as FP8.
+            source = source.view(torch.uint8)
+            destination = destination.view(torch.uint8)
+        selected = source[rows // block_size, rows % block_size]
+        if selected.dtype != destination.dtype:
+            selected = selected.contiguous().view(destination.dtype)
+        destination.copy_(selected)
 
     def create_stream(self, device: torch.device, *, generic: bool = False) -> Any:
         raise NotImplementedError
