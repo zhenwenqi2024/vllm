@@ -1,0 +1,41 @@
+{
+  "repository": "vllm",
+  "base": "e80b6c642f21fd5b24439825592f5b9ced36add8",
+  "source_manifest_sha256": "a091d032178a94f10df6343144ebb92285dc07c36244084cdc5e797b8e9ddd6b",
+  "files": {
+    "tests/v1/kv_connector/unit/test_hisparse_connector.py": "5187568b476b80fe35e6488cb76e86ff1eebec953975751a5ceec62c85515b20",
+    "tests/v1/worker/test_attn_utils.py": "969e936c26034291996d179cd79255cc6cc96072a5991664d46a78ac2fcc3d04",
+    "tests/v1/worker/test_hisparse_lifecycle.py": "a907e148b6e8601157ac1fedeaafb4d4e9a63a189c4fc1f8196ee31090219e44",
+    "tests/v1/worker/test_utils.py": "4e119d2c5aa45c865d11b58f64e70ba96fe30846e4866615880f0fba16e1d6a4",
+    "vllm/config/vllm.py": "88bcd8d95f9527fa7c7749c53e6bfcbb4643f1ee09af3feac0d67da6f0be3390",
+    "vllm/distributed/kv_transfer/kv_connector/v1/hisparse/worker.py": "3970869401896835aa74d934ca86274b702566ecea8801d1714b214ffcc95695",
+    "vllm/platforms/interface.py": "eeb996dea078af265011b31ff10b30fd8224a64c1f77c1d185dea5174b73533e",
+    "vllm/v1/attention/backends/mla/index_group.py": "b09d9b34cf918ec5ab0b6ce100c441fce819bbfabe9b88f560bfafaed070f73d",
+    "vllm/v1/hisparse/backend.py": "1ea16a96065aae4b613070ec37cdf244841a8ddf29044e4e18aff4aeb86f015b",
+    "vllm/v1/hisparse/binding.py": "24cb3d975b4b0871cc100481171bdbdb357f07bfb7135281e8ee7988027a626f",
+    "vllm/v1/hisparse/runtime.py": "2084d2e12c80a4ef871c7ea1d8c9ad8a22745e1d07be8ec1fee4da32cac159db"
+  },
+  "python_syntax_checked": [
+    "tests/v1/kv_connector/unit/test_hisparse_connector.py",
+    "tests/v1/worker/test_attn_utils.py",
+    "tests/v1/worker/test_hisparse_lifecycle.py",
+    "tests/v1/worker/test_utils.py",
+    "vllm/config/vllm.py",
+    "vllm/distributed/kv_transfer/kv_connector/v1/hisparse/worker.py",
+    "vllm/platforms/interface.py",
+    "vllm/v1/attention/backends/mla/index_group.py",
+    "vllm/v1/hisparse/backend.py",
+    "vllm/v1/hisparse/binding.py",
+    "vllm/v1/hisparse/runtime.py"
+  ],
+  "qualification": "Integration draft; not merge-ready. Exact original runtime09 file bytes retained. Full-model accuracy deferred; TPOT causal attribution unresolved; P/D real-model requests0; graph/C8/MTP P/D and multiDP not qualified. BF16 compaction optimization experiments remain separate and are not enabled in this runtime.",
+  "publication_checks": {
+    "repository": "vllm",
+    "python_files": 11,
+    "syntax_passed": true,
+    "whitespace_passed": true,
+    "ruff_exit": 0,
+    "staged_files": 12
+  },
+  "ruff_findings": "All checks passed."
+}

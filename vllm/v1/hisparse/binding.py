@@ -9,6 +9,7 @@ from typing import TYPE_CHECKING, Any
 import torch
 
 from vllm.config import VllmConfig
+from vllm.v1.hisparse.backend import get_hisparse_backend
 from vllm.v1.hisparse.layout import (
     HISPARSE_HOT_SUFFIX,
     HISPARSE_RESIDENT_SUFFIX,
@@ -126,8 +127,10 @@ def init_hisparse_kv_cache(
     vllm_config: VllmConfig,
     forward_context: dict[str, Any],
     block_tables: "BlockTables",
-) -> dict[str, torch.Tensor]:
+) -> dict[str, Any]:
     """Allocate and bind HiSparse caches within the caller's allocation context."""
+    backend = get_hisparse_backend()
+    backend.validate_kv_cache_config(kv_cache_config)
     host_pool = get_hisparse_host_pool(vllm_config, kv_cache_config)
     try:
         kv_caches = allocate_hisparse_kv_caches(
@@ -137,6 +140,7 @@ def init_hisparse_kv_cache(
             kernel_block_sizes,
             host_pool,
         )
+        backend.prepare_kv_cache_views(kv_cache_config, kv_caches, forward_context)
         cache_handles = bind_hisparse_kv_caches(
             forward_context=forward_context,
             kv_cache_config=kv_cache_config,
@@ -150,11 +154,23 @@ def init_hisparse_kv_cache(
         )
         return kv_caches
     except Exception:
-        if host_pool.shared_region is not None:
-            host_pool.shared_region.cleanup()
-        elif host_pool.registered is not None:
-            release_pinned_state([], [host_pool.registered])
-        drop_hisparse_host_pool(vllm_config)
+        runtimes = {
+            id(cache.runtime): cache.runtime
+            for layer in forward_context.values()
+            if (cache := getattr(layer, "hisparse_cache", None)) is not None
+        }
+        pools = (
+            [host_pool.registered]
+            if host_pool.registered is not None and host_pool.shared_region is None
+            else []
+        )
+        released = release_pinned_state(
+            list(runtimes.values()), pools, host_pool.shared_region
+        )
+        if released is not False:
+            if runtimes:
+                release_hisparse_profiling_cache(forward_context)
+            drop_hisparse_host_pool(vllm_config)
         raise
 
 
@@ -168,14 +184,36 @@ def _get_hisparse_cache(
 
 
 def release_hisparse_profiling_cache(forward_context: dict[str, Any]) -> None:
-    """Detach the profiling caches but keep the host pool for the real KV cache."""
-    runtimes = {
-        id(cache.runtime): cache.runtime
+    """Detach profiling views after the caller drains and destroys its graphs.
+
+    Keep the host pool and index-group scratch for the real KV cache. Both the
+    handle and runtime own device views; dropping only the raw backing retains
+    the profiling slab until the real cache is already allocated.
+    """
+    handles = {
+        id(cache): cache
         for layer in forward_context.values()
         if (cache := getattr(layer, "hisparse_cache", None)) is not None
-        and hasattr(cache.runtime, "_host_cache")
     }
-    release_pinned_state(list(runtimes.values()), [])
+    if not handles:
+        return
+    runtimes = {id(cache.runtime): cache.runtime for cache in handles.values()}
+    if release_pinned_state(list(runtimes.values()), []) is False:
+        return
+    for cache in handles.values():
+        cache.view = None
+        cache.residency = None
+        cache.block_table = None
+        cache.slot_mapping = None
+        cache.source_block_table = None
+        cache.mirror_slot_mapping = None
+        cache._batch_block_table = None
+    for runtime in runtimes.values():
+        for name in ("hot", "hot_block_table"):
+            if hasattr(runtime, name):
+                delattr(runtime, name)
+        runtime.request_state_indices = None
+        runtime._swap_staged = False
 
 
 def bind_hisparse_kv_caches(

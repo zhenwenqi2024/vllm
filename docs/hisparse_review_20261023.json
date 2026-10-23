@@ -1,0 +1,211 @@
+{
+  "created_at": "2026-10-23T09:34:41.843592+00:00",
+  "runtime": "hisparse_pd_candidate_395",
+  "parent": "a19039c89a2bd8a69132ff509353fd2819af6c4b",
+  "source_files": [
+    {
+      "path": "vllm/v1/hisparse/backend.py",
+      "sha256": "8096b3bad0b92c87eed266dd50780af53ec30cb561571baf2d225a00d9e3ab92"
+    },
+    {
+      "path": "vllm/v1/hisparse/runtime.py",
+      "sha256": "69645d50d54a4b2a747a8526c74c7a44bd15c96098d340979b155c6865622955"
+    }
+  ],
+  "raw_runtime_hashes": [
+    {
+      "path": "vllm/v1/hisparse/backend.py",
+      "sha256": "8096b3bad0b92c87eed266dd50780af53ec30cb561571baf2d225a00d9e3ab92"
+    },
+    {
+      "path": "vllm/v1/hisparse/runtime.py",
+      "sha256": "69645d50d54a4b2a747a8526c74c7a44bd15c96098d340979b155c6865622955"
+    }
+  ],
+  "native_extension_sha256": "b1efc1e43554f0ca03337ea1ca1d8d1734f42309ffaa665b3a6986c17b544122",
+  "native_rebuilt": false,
+  "normalization": "LF only",
+  "python_AST_passed": true,
+  "ruff_exit": 1,
+  "ruff_findings": {
+    "I001": 2
+  },
+  "ruff_format_exit": 0,
+  "CPU_tests": {
+    "total": 118,
+    "passed": 79,
+    "failed": 39,
+    "new_graph_MTP_contracts": {
+      "passed": 8,
+      "failed": 0
+    },
+    "failures": [
+      {
+        "test": "test_cleanup::test_registration_failure_retains_assigned_reader_and_real_owners[False]",
+        "reason": "AttributeError: 'types.SimpleNamespace' object has no attribute 'speculative_config'"
+      },
+      {
+        "test": "test_cleanup::test_registration_failure_retains_assigned_reader_and_real_owners[True]",
+        "reason": "AttributeError: 'types.SimpleNamespace' object has no attribute 'speculative_config'"
+      },
+      {
+        "test": "test_cleanup::test_worker_close_failure_retains_owners_until_device_and_transport_drained[device]",
+        "reason": "AttributeError: 'types.SimpleNamespace' object has no attribute 'speculative_config'"
+      },
+      {
+        "test": "test_cleanup::test_worker_close_failure_retains_owners_until_device_and_transport_drained[destroy]",
+        "reason": "AttributeError: 'types.SimpleNamespace' object has no attribute 'speculative_config'"
+      },
+      {
+        "test": "test_cleanup::test_worker_close_failure_retains_owners_until_device_and_transport_drained[unInitialize]",
+        "reason": "AttributeError: 'types.SimpleNamespace' object has no attribute 'speculative_config'"
+      },
+      {
+        "test": "test_cleanup::test_active_source_lease_keeps_ack_server_usable",
+        "reason": "AttributeError: 'types.SimpleNamespace' object has no attribute 'speculative_config'"
+      },
+      {
+        "test": "test_cleanup::test_future_error_preserved_after_safe_teardown_or_as_cleanup_cause[False]",
+        "reason": "AttributeError: 'types.SimpleNamespace' object has no attribute 'speculative_config'"
+      },
+      {
+        "test": "test_cleanup::test_future_error_preserved_after_safe_teardown_or_as_cleanup_cause[True]",
+        "reason": "AttributeError: 'types.SimpleNamespace' object has no attribute 'speculative_config'"
+      },
+      {
+        "test": "test_cleanup::test_background_read_failure_keeps_worker_without_drained_ack[False]",
+        "reason": "AttributeError: 'types.SimpleNamespace' object has no attribute 'speculative_config'"
+      },
+      {
+        "test": "test_cleanup::test_background_read_failure_keeps_worker_without_drained_ack[True]",
+        "reason": "AttributeError: 'types.SimpleNamespace' object has no attribute 'speculative_config'"
+      },
+      {
+        "test": "test_cleanup::test_server_close_failure_retains_worker_until_retry",
+        "reason": "AttributeError: 'types.SimpleNamespace' object has no attribute 'speculative_config'"
+      },
+      {
+        "test": "test_pd::test_real_zmq_worker_read_then_ack_or_retain_on_dma_error[False-False]",
+        "reason": "AttributeError: 'types.SimpleNamespace' object has no attribute 'is_current_stream_capturing'"
+      },
+      {
+        "test": "test_pd::test_real_zmq_worker_read_then_ack_or_retain_on_dma_error[True-False]",
+        "reason": "AttributeError: 'types.SimpleNamespace' object has no attribute 'is_current_stream_capturing'"
+      },
+      {
+        "test": "test_pd::test_real_zmq_worker_read_then_ack_or_retain_on_dma_error[False-True]",
+        "reason": "AttributeError: 'types.SimpleNamespace' object has no attribute 'is_current_stream_capturing'"
+      },
+      {
+        "test": "test_pd::test_reject_unsupported_configuration[<lambda>0]",
+        "reason": "AttributeError: 'types.SimpleNamespace' object has no attribute 'compilation_config'"
+      },
+      {
+        "test": "test_pd::test_reject_unsupported_configuration[<lambda>1]",
+        "reason": "AttributeError: 'object' object has no attribute 'method'"
+      },
+      {
+        "test": "test_pd::test_real_tensor_binding_and_storage_registration_dedup",
+        "reason": "AttributeError: 'types.SimpleNamespace' object has no attribute 'draft_layer'"
+      },
+      {
+        "test": "test_pd::test_safe_failures_before_dma_do_not_crash_worker[cancelled]",
+        "reason": "AttributeError: 'types.SimpleNamespace' object has no attribute 'is_current_stream_capturing'"
+      },
+      {
+        "test": "test_pd::test_safe_failures_before_dma_do_not_crash_worker[invalid_manifest]",
+        "reason": "AttributeError: 'types.SimpleNamespace' object has no attribute 'is_current_stream_capturing'"
+      },
+      {
+        "test": "test_pd::test_drained_read_with_lost_ack_is_failed_request",
+        "reason": "AttributeError: 'types.SimpleNamespace' object has no attribute 'is_current_stream_capturing'"
+      },
+      {
+        "test": "test_transport_config::test_configure_before_loading_records_version_hash_and_units[None]",
+        "reason": "AssertionError: assert {'configured_... '1.3.0', ...} == {'configured_... '1.3.0', ...}"
+      },
+      {
+        "test": "test_transport_config::test_configure_before_loading_records_version_hash_and_units[16]",
+        "reason": "AssertionError: assert {'configured_... '1.3.0', ...} == {'configured_... '1.3.0', ...}"
+      },
+      {
+        "test": "test_transport_config::test_already_loaded_cannot_be_repaired_by_environment[None-package]",
+        "reason": "ValueError: URMA configuration changed after its verified pre-load setup"
+      },
+      {
+        "test": "test_transport_config::test_already_loaded_cannot_be_repaired_by_environment[None-submodule]",
+        "reason": "ValueError: URMA configuration changed after its verified pre-load setup"
+      },
+      {
+        "test": "test_transport_config::test_already_loaded_cannot_be_repaired_by_environment[None-extension]",
+        "reason": "ValueError: URMA configuration changed after its verified pre-load setup"
+      },
+      {
+        "test": "test_transport_config::test_already_loaded_cannot_be_repaired_by_environment[None-maps_without_modules]",
+        "reason": "ValueError: URMA configuration changed after its verified pre-load setup"
+      },
+      {
+        "test": "test_transport_config::test_already_loaded_cannot_be_repaired_by_environment[16-package]",
+        "reason": "Failed: DID NOT RAISE <class 'RuntimeError'>"
+      },
+      {
+        "test": "test_transport_config::test_already_loaded_cannot_be_repaired_by_environment[16-submodule]",
+        "reason": "Failed: DID NOT RAISE <class 'RuntimeError'>"
+      },
+      {
+        "test": "test_transport_config::test_already_loaded_cannot_be_repaired_by_environment[16-extension]",
+        "reason": "Failed: DID NOT RAISE <class 'RuntimeError'>"
+      },
+      {
+        "test": "test_transport_config::test_already_loaded_cannot_be_repaired_by_environment[16-maps_without_modules]",
+        "reason": "Failed: DID NOT RAISE <class 'RuntimeError'>"
+      },
+      {
+        "test": "test_transport_config::test_real_configuration_precedes_engine_registration[True]",
+        "reason": "ValueError: URMA configuration changed after its verified pre-load setup"
+      },
+      {
+        "test": "test_transport_config::test_real_configuration_precedes_engine_registration[False]",
+        "reason": "ValueError: URMA configuration changed after its verified pre-load setup"
+      },
+      {
+        "test": "test_transport_config::test_role_addresses_offsets_multilayer_stride_and_actual_owners[True]",
+        "reason": "AttributeError: 'types.SimpleNamespace' object has no attribute 'draft_layer'"
+      },
+      {
+        "test": "test_transport_config::test_role_addresses_offsets_multilayer_stride_and_actual_owners[False]",
+        "reason": "AttributeError: 'types.SimpleNamespace' object has no attribute 'draft_layer'"
+      },
+      {
+        "test": "test_transport_config::test_source_mapping_must_still_be_live_for_both_addresses[True]",
+        "reason": "AttributeError: 'types.SimpleNamespace' object has no attribute 'draft_layer'"
+      },
+      {
+        "test": "test_transport_config::test_source_mapping_must_still_be_live_for_both_addresses[False]",
+        "reason": "AttributeError: 'types.SimpleNamespace' object has no attribute 'draft_layer'"
+      },
+      {
+        "test": "test_transport_config::test_cpu_indexer_remains_test_only_and_bf16_required",
+        "reason": "AttributeError: 'types.SimpleNamespace' object has no attribute 'draft_layer'"
+      },
+      {
+        "test": "test_transport_config::test_role_layout_partial_transfer_preserves_entire_backing[0]",
+        "reason": "AttributeError: 'types.SimpleNamespace' object has no attribute 'draft_layer'"
+      },
+      {
+        "test": "test_transport_config::test_role_layout_partial_transfer_preserves_entire_backing[37]",
+        "reason": "AttributeError: 'types.SimpleNamespace' object has no attribute 'draft_layer'"
+      }
+    ],
+    "uses_real_CPU_torch": true,
+    "unrelated_imports_AST_isolated": true,
+    "full_standard_pytest": false,
+    "NPU_context_started": false
+  },
+  "full_model_PD_verified": false,
+  "full_model_smoke_requests": 0,
+  "broad_accuracy": "deferred",
+  "publication_head_NPU_retest": false,
+  "AI_assistance": "OpenAI Codex; human review pending",
+  "generated_build_metadata_excluded": true
+}
